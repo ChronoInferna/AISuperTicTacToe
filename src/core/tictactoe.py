@@ -59,7 +59,8 @@ class TicTacToe:
 
         @param index A tuple of the row and column
         """
-        if 2 < index[0] < 0 or 2 < index[1] < 0:
+        row, column = index
+        if 2 < row < 0 or 2 < column < 0:
             raise ValueError("Row and column must be between 0 and 2.")
 
         if self.board[index] != Cell.B.value:
@@ -112,27 +113,30 @@ class SuperTicTacToe:
             for j in range(3):
                 self.boards[i, j] = TicTacToe()
         self.next_board: tuple[int, int] | None = None
+        self.flat_board: NDArray[np.int8] = np.zeros(180, dtype=np.int8)
 
     def make_move(
         self,
-        outer_board_index: tuple[int, int],
-        inner_board_index: tuple[int, int],
+        outer_index: tuple[int, int],
+        inner_index: tuple[int, int],
         player: Cell,
     ):
         """
         Execute a move for the specified player on a given inner board. Assumes the player knows what they're doing, i.e. what board they want next if the next board that's supposed to be played isn't playable
 
-        @param outer_board_index A tuple (row, col) indicating which sub-board to play in.
-        @param inner_board_index A tuple (row, col) within the sub-board to place the move.
+        @param outer_index A tuple (row, col) indicating which sub-board to play in.
+        @param inner_index A tuple (row, col) within the sub-board to place the move.
         @param player The player making the move (Cell.X or Cell.O).
 
         @throws ValueError If the move is made on an invalid or full board.
         """
+        outer_row, outer_col = outer_index
+        inner_row, inner_col = inner_index
         # If the next board is predetermined, automatically directs there
         if self.next_board is None:
-            if 2 < outer_board_index[0] < 0 or 2 < outer_board_index[1] < 0:
+            if 2 < outer_row < 0 or 2 < outer_col < 0:
                 raise ValueError("Row and column must be between 0 and 2.")
-            cur_board_index = outer_board_index
+            cur_board_index = outer_index
         else:
             cur_board_index = self.next_board
 
@@ -144,10 +148,27 @@ class SuperTicTacToe:
         if board.check_winner() or not np.any(board.board == Cell.B.value):
             raise ValueError("Board input is not valid.")
 
-        board.make_move(inner_board_index, player)
+        board.make_move(inner_index, player)
+        # Changes the flattened board according to the move
+        flat_index = 2 * np.ravel_multi_index(
+            (outer_row * 3 + inner_row, outer_col * 3 + inner_col), dims=(9, 9)
+        )
+        self.flat_board[flat_index : flat_index + 2] = (
+            [1, 0] if player == Cell.X else [0, 1]
+        )
+
+        # Check for winner
+        winner = board.check_winner()
+        if winner is not None:
+            flat_super_index = 162 + np.ravel_multi_index(
+                (outer_row, outer_col), dims=(3, 3)
+            )
+            self.flat_board[flat_super_index : flat_super_index + 2] = (
+                [1, 0] if player == Cell.X else [0, 1]
+            )
 
         # Determine next required board based on the move's location
-        self.next_board = inner_board_index
+        self.next_board = inner_index
         next_board: TicTacToe = cast(TicTacToe, self.boards[self.next_board])
 
         # Determine if next player can choose board
@@ -163,9 +184,9 @@ class SuperTicTacToe:
         for super_row in range(3):
             for inner_row in range(3):
                 row_parts: list[str] = []
-                for super_col in range(3):
+                for outer_col in range(3):
                     board: TicTacToe = cast(
-                        TicTacToe, self.boards[super_row, super_col]
+                        TicTacToe, self.boards[super_row, outer_col]
                     )
                     row = board.board[inner_row]
                     row_str: str = " ".join(
@@ -177,49 +198,67 @@ class SuperTicTacToe:
             if super_row < 2:
                 print("=" * 23)
 
+    def get_winner_matrix(self) -> NDArray[np.int8]:
+        """
+        Return a 3x3 matrix of the current winner of each sub-board.
+        Each cell is:
+            Cell.X → 1
+            Cell.O → 2
+            Cell.B (no winner yet) → 0
+        """
+        winners = np.zeros((3, 3), dtype=np.int8)
+        for i in range(3):
+            for j in range(3):
+                board: TicTacToe = cast(TicTacToe, self.boards[i, j])
+                winner = board.check_winner()
+                winners[i, j] = winner.value if winner is not None else Cell.B.value
+        return winners
+
+    def check_winner(self) -> Cell | None:
+        """
+        Checks if there's a winner (either player X or O).
+
+        Returns:
+            `Cell.X` if player X wins, `Cell.O` if player O wins, or `None` if no winner.
+        """
+        winners = self.get_winner_matrix()
+
+        # Check rows for a win
+        for row in winners:
+            if row[0] == row[1] == row[2] != Cell.B.value:
+                return row[0]
+
+        # Check columns for a win
+        for col in range(3):
+            if (
+                self.boards[0, col]
+                == self.boards[1, col]
+                == self.boards[2, col]
+                != Cell.B.value
+            ):
+                return self.boards[0, col]
+
+        # Check diagonals for a win
+        if self.boards[0, 0] == self.boards[1, 1] == self.boards[2, 2] != None:
+            return self.boards[0, 0]
+
+        if self.boards[0, 2] == self.boards[1, 1] == self.boards[2, 0] != None:
+            return self.boards[0, 2]
+
+        return None  # No winner
+
     def flatten_board(self) -> NDArray[np.int8]:
         """
-        Flatten the SuperTicTacToe board into a 1D array of 180 binary values.
+        Return the flattened SuperTicTacToe board containing 180 binary values.
 
         Each cell is encoded as:
-            X => [1, 0]
-            O => [0, 1]
-            B => [0, 0]
-        This is done for all 81 cells (9x9) → 162 values.
-
-        Then each 3x3 sub-board is encoded by its winner using the same rule → 18 more values.
+            X -> [1, 0]
+            O -> [0, 1]
+            B -> [0, 0]
 
         @return A NumPy array of shape (180,) with 0s and 1s.
         """
-        encoding = []
-
-        # Encodes entire super board
-        for super_row in range(3):
-            for super_col in range(3):
-                board: TicTacToe = cast(TicTacToe, self.boards[super_row, super_col])
-                for i in range(3):
-                    for j in range(3):
-                        val = board.board[i, j]
-                        if val == Cell.X:
-                            encoding.extend([1, 0])
-                        elif val == Cell.O:
-                            encoding.extend([0, 1])
-                        else:
-                            encoding.extend([0, 0])
-
-        # Encodes each sub-board
-        for super_row in range(3):
-            for super_col in range(3):
-                board: TicTacToe = cast(TicTacToe, self.boards[super_row, super_col])
-                winner = board.check_winner()
-                if winner == Cell.X:
-                    encoding.extend([1, 0])
-                elif winner == Cell.O:
-                    encoding.extend([0, 1])
-                else:
-                    encoding.extend([0, 0])
-
-        return np.array(encoding, dtype=np.int8)
+        return self.flat_board
 
 
 # For testing purposes only
@@ -232,6 +271,7 @@ def main():
         try:
             print("\nCurrent state of the Super Board:")
             game.display_board()
+            print(game.flatten_board())
 
             # Only ask for board number if the player is allowed to choose any board
             outer_index: tuple[int, int]
@@ -256,6 +296,9 @@ def main():
 
         except Exception as e:
             print(f"Error: {e}")
+
+        if game.check_winner() != None:
+            break
 
 
 if __name__ == "__main__":
