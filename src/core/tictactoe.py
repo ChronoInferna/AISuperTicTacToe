@@ -61,14 +61,14 @@ class TicTacToe:
         """
         row, column = index
         if 2 < row < 0 or 2 < column < 0:
-            raise ValueError("Row and column must be between 0 and 2.")
+            raise ValueError("Row and column must be between 1 and 3.")
 
         if self.board[index] != Cell.B.value:
-            raise ValueError(f"Cell {index} is already occupied.")
+            raise ValueError(f"Cell {(index[0]+1, index[1]+1)} is already occupied.")
 
         self.board[index[0], index[1]] = player.value
 
-    def check_winner(self) -> Cell | None:
+    def check_winner(self):
         """
         Checks if there's a winner (either player X or O).
 
@@ -97,7 +97,11 @@ class TicTacToe:
         if self.board[0, 2] == self.board[1, 1] == self.board[2, 0] != Cell.B.value:
             return Cell(self.board[0, 2])
 
-        return None  # No winner
+        # Check if there is a draw
+        if not(Cell.B.value in self.board[0] or Cell.B.value in self.board[1] or Cell.B.value in self.board[2]):
+            return Cell.B.value
+
+        return None  # No winner yet
 
 
 class SuperTicTacToe:
@@ -135,7 +139,7 @@ class SuperTicTacToe:
         # If the next board is predetermined, automatically directs there
         if self.next_board is None:
             if 2 < outer_row < 0 or 2 < outer_col < 0:
-                raise ValueError("Row and column must be between 0 and 2.")
+                raise ValueError("Row and column must be between 1 and 3.")
             cur_board_index = outer_index
         else:
             cur_board_index = self.next_board
@@ -160,7 +164,7 @@ class SuperTicTacToe:
         # Check for winner
         winner = board.check_winner()
         if winner is not None:
-            flat_super_index = 162 + np.ravel_multi_index(
+            flat_super_index = 162 + 2*np.ravel_multi_index(
                 (outer_row, outer_col), dims=(3, 3)
             )
             self.flat_board[flat_super_index : flat_super_index + 2] = (
@@ -196,7 +200,7 @@ class SuperTicTacToe:
                     row_parts.append(row_str)
                 print(" || ".join(row_parts))
             if super_row < 2:
-                print("=" * 23)
+                print("=" * 25)
 
     def get_winner_matrix(self) -> NDArray[np.int8]:
         """
