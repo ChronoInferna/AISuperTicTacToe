@@ -68,7 +68,7 @@ class TicTacToe:
 
         self.board[index[0], index[1]] = player.value
 
-    def check_winner(self):
+    def check_winner(self) -> Cell | None:
         """
         Checks if there's a winner (either player X or O).
 
@@ -98,8 +98,12 @@ class TicTacToe:
             return Cell(self.board[0, 2])
 
         # Check if there is a draw
-        if not(Cell.B.value in self.board[0] or Cell.B.value in self.board[1] or Cell.B.value in self.board[2]):
-            return Cell.B.value
+        if not (
+            Cell.B.value in self.board[0]
+            or Cell.B.value in self.board[1]
+            or Cell.B.value in self.board[2]
+        ):
+            return Cell.B
 
         return None  # No winner yet
 
@@ -117,7 +121,8 @@ class SuperTicTacToe:
             for j in range(3):
                 self.boards[i, j] = TicTacToe()
         self.next_board: tuple[int, int] | None = None
-        self.flat_board: NDArray[np.int8] = np.zeros(180, dtype=np.int8)
+        self.X_flat_board: NDArray[np.int8] = np.zeros(180, dtype=np.int8)
+        self.O_flat_board: NDArray[np.int8] = np.zeros(180, dtype=np.int8)
 
     def make_move(
         self,
@@ -157,18 +162,24 @@ class SuperTicTacToe:
         flat_index = 2 * np.ravel_multi_index(
             (outer_row * 3 + inner_row, outer_col * 3 + inner_col), dims=(9, 9)
         )
-        self.flat_board[flat_index : flat_index + 2] = (
+        self.X_flat_board[flat_index : flat_index + 2] = (
             [1, 0] if player == Cell.X else [0, 1]
+        )
+        self.O_flat_board[flat_index : flat_index + 2] = (
+            [1, 0] if player == Cell.O else [0, 1]
         )
 
         # Check for winner
         winner = board.check_winner()
         if winner is not None:
-            flat_super_index = 162 + 2*np.ravel_multi_index(
+            flat_super_index = 162 + 2 * np.ravel_multi_index(
                 (outer_row, outer_col), dims=(3, 3)
             )
-            self.flat_board[flat_super_index : flat_super_index + 2] = (
+            self.X_flat_board[flat_super_index : flat_super_index + 2] = (
                 [1, 0] if player == Cell.X else [0, 1]
+            )
+            self.O_flat_board[flat_super_index : flat_super_index + 2] = (
+                [1, 0] if player == Cell.O else [0, 1]
             )
 
         # Determine next required board based on the move's location
@@ -230,7 +241,7 @@ class SuperTicTacToe:
         # Check rows for a win
         for row in winners:
             if row[0] == row[1] == row[2] != Cell.B.value:
-                return row[0]
+                return Cell(row[0])
 
         # Check columns for a win
         for col in range(3):
@@ -240,18 +251,18 @@ class SuperTicTacToe:
                 == self.boards[2, col]
                 != Cell.B.value
             ):
-                return self.boards[0, col]
+                return Cell(self.boards[0, col])
 
         # Check diagonals for a win
         if self.boards[0, 0] == self.boards[1, 1] == self.boards[2, 2] != None:
-            return self.boards[0, 0]
+            return Cell(self.boards[0, 0])
 
         if self.boards[0, 2] == self.boards[1, 1] == self.boards[2, 0] != None:
-            return self.boards[0, 2]
+            return Cell(self.boards[0, 2])
 
         return None  # No winner
 
-    def flatten_board(self) -> NDArray[np.int8]:
+    def X_flatten_board(self) -> NDArray[np.int8]:
         """
         Return the flattened SuperTicTacToe board containing 180 binary values.
 
@@ -262,7 +273,20 @@ class SuperTicTacToe:
 
         @return A NumPy array of shape (180,) with 0s and 1s.
         """
-        return self.flat_board
+        return self.X_flat_board
+
+    def O_flatten_board(self) -> NDArray[np.int8]:
+        """
+        Return the flattened SuperTicTacToe board containing 180 binary values.
+
+        Each cell is encoded as:
+            X -> [1, 0]
+            O -> [0, 1]
+            B -> [0, 0]
+
+        @return A NumPy array of shape (180,) with 0s and 1s.
+        """
+        return self.O_flat_board
 
 
 # For testing purposes only
@@ -275,7 +299,8 @@ def main():
         try:
             print("\nCurrent state of the Super Board:")
             game.display_board()
-            print(game.flatten_board())
+            # print(game.X_flatten_board())
+            # print(game.O_flatten_board())
 
             # Only ask for board number if the player is allowed to choose any board
             outer_index: tuple[int, int]
