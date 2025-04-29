@@ -325,5 +325,3 @@ class SuperTicTacToe:
         """
         # Next board list needed to tell the bot what moves are valid.
         return self.O_flat_board
-
-
