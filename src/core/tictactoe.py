@@ -1,8 +1,12 @@
 from typing import cast
 from enum import IntEnum
+import random
 
 import numpy as np
 from numpy.typing import NDArray
+import torch
+
+import src.ai.ai as TTM
 
 
 class Cell(IntEnum):
@@ -15,6 +19,7 @@ class Cell(IntEnum):
     @value O: Represents player O's move (2).
     """
 
+    F = -1 # Full
     B = 0  # Blank
     X = 1  # Player X's move
     O = 2  # Player O's move
@@ -68,7 +73,7 @@ class TicTacToe:
 
         self.board[index[0], index[1]] = player.value
 
-    def check_winner(self):
+    def check_winner(self) -> Cell | None:
         """
         Checks if there's a winner (either player X or O).
 
@@ -98,10 +103,14 @@ class TicTacToe:
             return Cell(self.board[0, 2])
 
         # Check if there is a draw
-        if not(Cell.B.value in self.board[0] or Cell.B.value in self.board[1] or Cell.B.value in self.board[2]):
-            return Cell.B.value
+        if not (
+            Cell.B.value in self.board[0]
+            or Cell.B.value in self.board[1]
+            or Cell.B.value in self.board[2]
+        ):
+            return Cell.F
 
-        return None  # No winner yet
+        return Cell.B  # No winner yet
 
 
 class SuperTicTacToe:
@@ -117,7 +126,10 @@ class SuperTicTacToe:
             for j in range(3):
                 self.boards[i, j] = TicTacToe()
         self.next_board: tuple[int, int] | None = None
-        self.flat_board: NDArray[np.int8] = np.zeros(180, dtype=np.int8)
+        self.X_flat_board: NDArray[np.int8] = np.zeros(189, dtype=np.int8)
+        self.O_flat_board: NDArray[np.int8] = np.zeros(189, dtype=np.int8)
+        self.next_board_list = np.ones(9)
+        self.valid_moves = np.ones(81)
 
     def make_move(
         self,
@@ -157,18 +169,24 @@ class SuperTicTacToe:
         flat_index = 2 * np.ravel_multi_index(
             (outer_row * 3 + inner_row, outer_col * 3 + inner_col), dims=(9, 9)
         )
-        self.flat_board[flat_index : flat_index + 2] = (
+        self.X_flat_board[flat_index : flat_index + 2] = (
             [1, 0] if player == Cell.X else [0, 1]
+        )
+        self.O_flat_board[flat_index : flat_index + 2] = (
+            [1, 0] if player == Cell.O else [0, 1]
         )
 
         # Check for winner
         winner = board.check_winner()
-        if winner is not None:
-            flat_super_index = 162 + 2*np.ravel_multi_index(
+        if winner is not Cell.B:
+            flat_super_index = 162 + 2 * np.ravel_multi_index(
                 (outer_row, outer_col), dims=(3, 3)
             )
-            self.flat_board[flat_super_index : flat_super_index + 2] = (
+            self.X_flat_board[flat_super_index : flat_super_index + 2] = (
                 [1, 0] if player == Cell.X else [0, 1]
+            )
+            self.O_flat_board[flat_super_index : flat_super_index + 2] = (
+                [1, 0] if player == Cell.O else [0, 1]
             )
 
         # Determine next required board based on the move's location
@@ -178,6 +196,31 @@ class SuperTicTacToe:
         # Determine if next player can choose board
         if next_board.check_winner() or not np.any(next_board.board == Cell.B.value):
             self.next_board = None
+
+        #Next board list for bot to know what boards are valid.
+        self.next_board_list = np.zeros(9)
+        if self.next_board is None:
+            winners = self.get_winner_matrix()
+            for i in range(9):
+                if winners[i//3][i%3] == Cell.B:
+                    self.next_board_list[i] = 1
+        else:
+            self.next_board_list[self.next_board[0]*3+self.next_board[1]] = 1
+        self.valid_moves = np.zeros(81)
+        for b in range(9):
+            if self.next_board_list[b] == 1:
+                for square in range(9):
+                    if self.boards[b//3, b%3].board[square//3, square%3] == Cell.B:
+                        self.valid_moves[b*9+square] = 1
+
+        for i in range(180, 189):
+            self.X_flat_board[i] = self.next_board_list[i - 180]
+            self.O_flat_board[i] = self.next_board_list[i-180]
+
+    # For the bot to know what moves are valid.
+    def get_valid_moves(self):
+
+        return self.valid_moves
 
     # A little thrown together but this isn't useful for the AI anyways
     # Also, not entirely sure why the last column of blanks is slightly smaller, but that might just be on my machine
@@ -215,7 +258,7 @@ class SuperTicTacToe:
             for j in range(3):
                 board: TicTacToe = cast(TicTacToe, self.boards[i, j])
                 winner = board.check_winner()
-                winners[i, j] = winner.value if winner is not None else Cell.B.value
+                winners[i, j] = winner.value
         return winners
 
     def check_winner(self) -> Cell | None:
@@ -230,28 +273,32 @@ class SuperTicTacToe:
         # Check rows for a win
         for row in winners:
             if row[0] == row[1] == row[2] != Cell.B.value:
-                return row[0]
+                return Cell(row[0])
 
         # Check columns for a win
         for col in range(3):
             if (
-                self.boards[0, col]
-                == self.boards[1, col]
-                == self.boards[2, col]
+                winners[0, col]
+                == winners[1, col]
+                == winners[2, col]
                 != Cell.B.value
             ):
-                return self.boards[0, col]
+                return Cell(winners[0, col])
 
         # Check diagonals for a win
-        if self.boards[0, 0] == self.boards[1, 1] == self.boards[2, 2] != None:
-            return self.boards[0, 0]
+        if winners[0, 0] == winners[1, 1] == winners[2, 2] != Cell.B.value:
+            return Cell(winners[0, 0])
 
-        if self.boards[0, 2] == self.boards[1, 1] == self.boards[2, 0] != None:
-            return self.boards[0, 2]
+        if winners[0, 2] == winners[1, 1] == winners[2, 0] != Cell.B.value:
+            return Cell(winners[0, 2])
 
-        return None  # No winner
+        # Check if there is a draw
+        if not(Cell.B.value in winners[0] or Cell.B.value in winners[1] or Cell.B.value in winners[2]):
+            return Cell.F
 
-    def flatten_board(self) -> NDArray[np.int8]:
+        return Cell.B  # No winner
+
+    def X_flatten_board(self) -> NDArray[np.int8]:
         """
         Return the flattened SuperTicTacToe board containing 180 binary values.
 
@@ -260,50 +307,23 @@ class SuperTicTacToe:
             O -> [0, 1]
             B -> [0, 0]
 
-        @return A NumPy array of shape (180,) with 0s and 1s.
+        @return A NumPy array of shape (189,) with 0s and 1s.
         """
-        return self.flat_board
+        # Next board list needed to tell the bot what moves are valid.
+        return self.X_flat_board
+
+    def O_flatten_board(self) -> NDArray[np.int8]:
+        """
+        Return the flattened SuperTicTacToe board containing 180 binary values.
+
+        Each cell is encoded as:
+            X -> [1, 0]
+            O -> [0, 1]
+            B -> [0, 0]
+
+        @return A NumPy array of shape (189,) with 0s and 1s.
+        """
+        # Next board list needed to tell the bot what moves are valid.
+        return self.O_flat_board
 
 
-# For testing purposes only
-def main():
-    print("Welcome to Super Tic Tac Toe!")
-    game = SuperTicTacToe()
-    current_player = Cell.X  # Start with Player X
-
-    while True:
-        try:
-            print("\nCurrent state of the Super Board:")
-            game.display_board()
-            print(game.flatten_board())
-
-            # Only ask for board number if the player is allowed to choose any board
-            outer_index: tuple[int, int]
-            if game.next_board is None:
-                outer_row = int(input("Choose an outer row (1-3): ")) - 1
-                outer_col = int(input("Choose an outer column (1-3): ")) - 1
-                outer_index = outer_row, outer_col
-            else:
-                outer_index = game.next_board
-                print(
-                    f"\nPlayer {current_player.name}, you must play in board {outer_index[0]+1}, {outer_index[1]+1}."
-                )
-
-            inner_row = int(input("Choose an inner row (1-3): ")) - 1
-            inner_col = int(input("Choose an inner column (1-3): ")) - 1
-            inner_index: tuple[int, int] = inner_row, inner_col
-
-            game.make_move(outer_index, inner_index, current_player)
-
-            # Switch players
-            current_player = Cell.O if current_player == Cell.X else Cell.X
-
-        except Exception as e:
-            print(f"Error: {e}")
-
-        if game.check_winner() != None:
-            break
-
-
-if __name__ == "__main__":
-    main()
