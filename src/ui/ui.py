@@ -59,11 +59,12 @@ def main():
     if mode == "train":
         epochs = int(input("How many epochs would you like? "))
         tests = int(input("Post training, how many test games against random players would you like? "))
-        portion = float(input("What portion of training games should the bot play against itself? The rest will be played against random players. Enter a number from 0-1. "))
+        bot_portion = float(input("What portion of training games should the bot play against itself? The rest will be played against random players. Enter a number from 0-1. "))
+        random_portion = float(input("What portion of the bot's actions should be random during training? "))
 
         model = TTM.TicTacMaster()
         model.load_state_dict(torch.load('model_weights.pth', weights_only=False))
-        TTM.train(model, epochs, .1, "model_weights.pth", portion)
+        TTM.train(model, epochs, .1, "model_weights.pth", bot_portion, random_portion)
 
         bot_vs_random(model, tests, False)
     else:

@@ -51,7 +51,7 @@ def tic_tac_rand(board):
     return move_in, move_out
 
 
-def train(model: TicTacMaster, epochs: int, learning_rate: float, path: str, portion: float):
+def train(model: TicTacMaster, epochs: int, learning_rate: float, path: str, bot_portion: float, random_portion: float):
     import src.core.tictactoe as TTT
     # Set up the hyperparameters
     loss_fn = nn.MSELoss()
@@ -66,7 +66,7 @@ def train(model: TicTacMaster, epochs: int, learning_rate: float, path: str, por
         move_history_b = []
         valid_move_history_b = []
 
-        against_bot = random.random() < portion
+        against_bot = random.random() < bot_portion
 
         '''
         Game move logic here:
@@ -81,11 +81,18 @@ def train(model: TicTacMaster, epochs: int, learning_rate: float, path: str, por
             model.eval()
             while True:
                 if current_player == bot_character:
+                    is_choice_random = random.random() < random_portion
                     if bot_character == TTT.Cell.X:
-                        model_output = model.forward(torch.Tensor(game.X_flatten_board()))
+                        if not is_choice_random:
+                            model_output = model.forward(torch.Tensor(game.X_flatten_board()))
+                        else:
+                            model_output = torch.rand(81)
                         board_history.append(game.X_flatten_board())
                     else:
-                        model_output = model.forward(torch.Tensor(game.O_flatten_board()))
+                        if not is_choice_random:
+                            model_output = model.forward(torch.Tensor(game.O_flatten_board()))
+                        else:
+                            model_output = torch.rand(81)
                         board_history.append(game.O_flatten_board())
                     move_made = max_valid_move(game, model_output)
                     outer_index, inner_index = square_to_tuple(move_made)
@@ -95,11 +102,18 @@ def train(model: TicTacMaster, epochs: int, learning_rate: float, path: str, por
                     if not against_bot:
                         outer_index, inner_index = tic_tac_rand(game)
                     else:
+                        is_choice_random = random.random() < random_portion
                         if bot_character == TTT.Cell.X:
-                            model_output = model.forward(torch.Tensor(game.O_flatten_board()))
+                            if not is_choice_random:
+                                model_output = model.forward(torch.Tensor(game.O_flatten_board()))
+                            else:
+                                model_output = torch.rand(81)
                             board_history_b.append(game.O_flatten_board())
                         else:
-                            model_output = model.forward(torch.Tensor(game.X_flatten_board()))
+                            if not is_choice_random:
+                                model_output = model.forward(torch.Tensor(game.X_flatten_board()))
+                            else:
+                                model_output = torch.rand(81)
                             board_history_b.append(game.X_flatten_board())
                         move_made = max_valid_move(game, model_output)
                         outer_index, inner_index = square_to_tuple(move_made)
