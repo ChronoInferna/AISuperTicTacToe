@@ -56,8 +56,11 @@ def train(model: TicTacMaster, epochs: int, learning_rate: float, path: str, bot
     # Set up the hyperparameters
     loss_fn = nn.MSELoss()
     optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
+    batches = 32 # Predefined since there is not much time to experiment with it.
 
-    for i in range(epochs): # Here, epochs is the number of games to train on.
+    for i in range(epochs): # Here, epochs is the number of games to train on * 32.
+        cur_move = 0
+        cur_move_b = 0
         board_history = []
         move_history = []
         valid_move_history = []
@@ -66,133 +69,125 @@ def train(model: TicTacMaster, epochs: int, learning_rate: float, path: str, bot
         move_history_b = []
         valid_move_history_b = []
 
-        against_bot = random.random() < bot_portion
+        tensor_correction = []
+        tensor_correction_b = []
+        for b in range(batches):
+            against_bot = random.random() < bot_portion
 
-        '''
-        Game move logic here:
-        =======
-        '''
-        game = TTT.SuperTicTacToe()
-        current_player = TTT.Cell.X  # Start with Player X
+            '''
+            Game move logic here:
+            =======
+            '''
+            game = TTT.SuperTicTacToe()
+            current_player = TTT.Cell.X  # Start with Player X
 
-        bot_character = random.choice([TTT.Cell.X, TTT.Cell.O])
+            bot_character = random.choice([TTT.Cell.X, TTT.Cell.O])
 
-        with torch.no_grad(): # Reduces computations
-            model.eval()
-            while True:
-                if current_player == bot_character:
-                    is_choice_random = random.random() < random_portion
-                    if bot_character == TTT.Cell.X:
-                        if not is_choice_random:
-                            model_output = model.forward(torch.Tensor(game.X_flatten_board()))
-                        else:
-                            model_output = torch.rand(81)
-                        board_history.append(game.X_flatten_board())
-                    else:
-                        if not is_choice_random:
-                            model_output = model.forward(torch.Tensor(game.O_flatten_board()))
-                        else:
-                            model_output = torch.rand(81)
-                        board_history.append(game.O_flatten_board())
-                    move_made = max_valid_move(game, model_output)
-                    outer_index, inner_index = square_to_tuple(move_made)
-                    move_history.append(move_made)
-                    valid_move_history.append(game.get_valid_moves())
-                else:
-                    if not against_bot:
-                        outer_index, inner_index = tic_tac_rand(game)
-                    else:
+            with torch.no_grad(): # Reduces computations
+                model.eval()
+                while True:
+                    if current_player == bot_character:
                         is_choice_random = random.random() < random_portion
                         if bot_character == TTT.Cell.X:
-                            if not is_choice_random:
-                                model_output = model.forward(torch.Tensor(game.O_flatten_board()))
-                            else:
-                                model_output = torch.rand(81)
-                            board_history_b.append(game.O_flatten_board())
-                        else:
                             if not is_choice_random:
                                 model_output = model.forward(torch.Tensor(game.X_flatten_board()))
                             else:
                                 model_output = torch.rand(81)
-                            board_history_b.append(game.X_flatten_board())
+                            board_history.append(game.X_flatten_board())
+                        else:
+                            if not is_choice_random:
+                                model_output = model.forward(torch.Tensor(game.O_flatten_board()))
+                            else:
+                                model_output = torch.rand(81)
+                            board_history.append(game.O_flatten_board())
                         move_made = max_valid_move(game, model_output)
                         outer_index, inner_index = square_to_tuple(move_made)
-                        move_history_b.append(move_made)
-                        valid_move_history_b.append(game.get_valid_moves())
+                        move_history.append(move_made)
+                        valid_move_history.append(game.get_valid_moves())
+                    else:
+                        if not against_bot:
+                            outer_index, inner_index = tic_tac_rand(game)
+                        else:
+                            is_choice_random = random.random() < random_portion
+                            if bot_character == TTT.Cell.X:
+                                if not is_choice_random:
+                                    model_output = model.forward(torch.Tensor(game.O_flatten_board()))
+                                else:
+                                    model_output = torch.rand(81)
+                                board_history_b.append(game.O_flatten_board())
+                            else:
+                                if not is_choice_random:
+                                    model_output = model.forward(torch.Tensor(game.X_flatten_board()))
+                                else:
+                                    model_output = torch.rand(81)
+                                board_history_b.append(game.X_flatten_board())
+                            move_made = max_valid_move(game, model_output)
+                            outer_index, inner_index = square_to_tuple(move_made)
+                            move_history_b.append(move_made)
+                            valid_move_history_b.append(game.get_valid_moves())
 
-                game.make_move(outer_index, inner_index, current_player)
-                # Switch players
-                current_player = TTT.Cell.O if current_player == TTT.Cell.X else TTT.Cell.X
-                winner = game.check_winner()
-                if winner != TTT.Cell.B:
-                    break
-        '''
-        =======
-        '''
+                    game.make_move(outer_index, inner_index, current_player)
+                    # Switch players
+                    current_player = TTT.Cell.O if current_player == TTT.Cell.X else TTT.Cell.X
+                    winner = game.check_winner()
+                    if winner != TTT.Cell.B:
+                        break
+            '''
+            =======
+            '''
 
-        #TRAINING
-        winner = game.check_winner()
+            #TRAINING
+            winner = game.check_winner()
 
-        tensor_correction = []
-        tensor_correction_b = []
-        if winner == bot_character:
-            # If the bot won, reinforce its actions by telling it to increase its confidence in the moves it made.
-            for m in move_history:
-                new_tensor = np.zeros(81)
-                new_tensor[m] = 1
-                tensor_correction.append(new_tensor)
-            # If bot playing against itself, penalize it for losing too.
-            if against_bot:
-                for m in range(len(move_history_b)):
-                    new_tensor = valid_move_history_b[m]
-                    new_tensor[move_history_b[m]] = 0
-                    tensor_correction_b.append(new_tensor)
-        elif winner == TTT.Cell.X or winner == TTT.Cell.O:
-            # This will set the corrections to a 1 for each valid move OTHER than the one made for a losing bot.
-            for m in range(len(move_history)):
-                new_tensor = valid_move_history[m]
-                new_tensor[move_history[m]] = 0
-                tensor_correction.append(new_tensor)
-            # Since the bot also won against itself, it should be rewarded.
-            if against_bot:
-                for m in move_history_b:
+            if winner == bot_character:
+                # If the bot won, reinforce its actions by telling it to increase its confidence in the moves it made.
+                for m in move_history[cur_move:]:
                     new_tensor = np.zeros(81)
                     new_tensor[m] = 1
-                    tensor_correction_b.append(new_tensor)
-        else: # In the case of a draw, both sides are punished
-            for m in range(len(move_history)):
-                new_tensor = valid_move_history[m]
-                new_tensor[move_history[m]] = 0
-                tensor_correction.append(new_tensor)
-            if against_bot:
-                for m in range(len(move_history_b)):
-                    new_tensor = valid_move_history_b[m]
-                    new_tensor[move_history_b[m]] = 0
-                    tensor_correction_b.append(new_tensor)
-
-        tensor_correction = np.array(tensor_correction)
-        board_history = np.array(board_history)
+                    tensor_correction.append(new_tensor)
+                # If bot playing against itself, penalize it for losing too.
+                if against_bot:
+                    for m in range(cur_move_b, len(move_history_b)):
+                        new_tensor = valid_move_history_b[m]
+                        new_tensor[move_history_b[m]] = 0
+                        tensor_correction_b.append(new_tensor)
+            elif winner == TTT.Cell.X or winner == TTT.Cell.O:
+                # This will set the corrections to a 1 for each valid move OTHER than the one made for a losing bot.
+                for m in range(cur_move, len(move_history)):
+                    new_tensor = valid_move_history[m]
+                    new_tensor[move_history[m]] = 0
+                    tensor_correction.append(new_tensor)
+                # Since the bot also won against itself, it should be rewarded.
+                if against_bot:
+                    for m in move_history_b[cur_move_b:]:
+                        new_tensor = np.zeros(81)
+                        new_tensor[m] = 1
+                        tensor_correction_b.append(new_tensor)
+            else: # In the case of a draw, both sides are punished
+                for m in range(cur_move, len(move_history)):
+                    new_tensor = valid_move_history[m]
+                    new_tensor[move_history[m]] = 0
+                    tensor_correction.append(new_tensor)
+                if against_bot:
+                    for m in range(cur_move_b, len(move_history_b)):
+                        new_tensor = valid_move_history_b[m]
+                        new_tensor[move_history_b[m]] = 0
+                        tensor_correction_b.append(new_tensor)
+            cur_move = len(move_history)
+            cur_move_b = len(move_history_b)
+        tensor_correction += tensor_correction_b
+        board_history += board_history_b
+        board_history = torch.Tensor(np.array(board_history))
+        corrections = torch.Tensor(np.array(tensor_correction))
         model.train()
-        corrections = torch.Tensor(tensor_correction)
-        if against_bot:
-            board_history_b = np.array(board_history_b)
-            tensor_correction_b = np.array(tensor_correction_b)
-            corrections_b = torch.Tensor(tensor_correction_b)
-        for i1 in range(10):
-            # Calculate error between credence and correct move
-            outputs = model(torch.Tensor(board_history))
-            #print(outputs, corrections)
-            loss = loss_fn(outputs, corrections)
-            # Backprop
-            loss.backward()
-            if against_bot:
-                outputs = model(torch.Tensor(board_history_b))
-                # print(outputs, corrections)
-                loss = loss_fn(outputs, corrections_b)
-                # Backprop
-                loss.backward()
-            optimizer.step()
-            optimizer.zero_grad()
+        # Calculate error between credence and correct move
+        outputs = model(board_history)
+        #print(outputs, corrections)
+        loss = loss_fn(outputs, corrections)
+        # Backprop
+        loss.backward()
+        optimizer.step()
+        optimizer.zero_grad()
         if i % (epochs/1000) == 0:
             print(f"{round(i/epochs*100,3)}%")
     torch.save(model.state_dict(), path)
