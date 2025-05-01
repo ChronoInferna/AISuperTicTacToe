@@ -95,7 +95,7 @@ def main():
     model = TTM.TicTacMaster()
     model.load_state_dict(torch.load('files/model_weights.pth',weights_only=False))
     if game_mode == 3:
-        tests = int(ask_until_valid("How many test games against random players would you like? ", lambda x: x.isnumeric() and x > 0))
+        tests = int(ask_until_valid("How many test games against random players would you like? ", lambda x: x.isnumeric() and int(x) > 0))
         display = ask_until_valid("Would you like to display the ends of each game? ", lambda x: x.lower() in ["yes", "no"]).lower() == "yes"
         TTM.bot_vs_random(model,tests,display)
     else:
