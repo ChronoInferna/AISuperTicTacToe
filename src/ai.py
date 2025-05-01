@@ -105,11 +105,9 @@ def train(model: TicTacMaster, epochs: int, learning_rate: float, bot_portion: f
         cur_move_b = 0
         board_history = []
         move_history = []
-        valid_move_history = []
 
         board_history_b = []
         move_history_b = []
-        valid_move_history_b = []
 
         tensor_correction = []
         tensor_correction_b = []
@@ -145,7 +143,6 @@ def train(model: TicTacMaster, epochs: int, learning_rate: float, bot_portion: f
                         move_made = max_valid_move(game, model_output)
                         outer_index, inner_index = square_to_tuple(move_made)
                         move_history.append(move_made)
-                        valid_move_history.append(game.get_valid_moves())
                     else:
                         if not against_bot:
                             outer_index, inner_index = tic_tac_rand(game)
@@ -166,7 +163,6 @@ def train(model: TicTacMaster, epochs: int, learning_rate: float, bot_portion: f
                             move_made = max_valid_move(game, model_output)
                             outer_index, inner_index = square_to_tuple(move_made)
                             move_history_b.append(move_made)
-                            valid_move_history_b.append(game.get_valid_moves())
 
                     game.make_move(outer_index, inner_index, current_player)
                     # Switch players
@@ -190,13 +186,13 @@ def train(model: TicTacMaster, epochs: int, learning_rate: float, bot_portion: f
                 # If bot playing against itself, penalize it for losing too.
                 if against_bot:
                     for m in range(cur_move_b, len(move_history_b)):
-                        new_tensor = valid_move_history_b[m]
+                        new_tensor = np.ones(81)
                         new_tensor[move_history_b[m]] = 0
                         tensor_correction_b.append(new_tensor)
             elif winner == TTT.Cell.X or winner == TTT.Cell.O:
                 # This will set the corrections to a 1 for each valid move OTHER than the one made for a losing bot.
                 for m in range(cur_move, len(move_history)):
-                    new_tensor = valid_move_history[m]
+                    new_tensor = np.ones(81)
                     new_tensor[move_history[m]] = 0
                     tensor_correction.append(new_tensor)
                 # Since the bot also won against itself, it should be rewarded.
@@ -207,12 +203,12 @@ def train(model: TicTacMaster, epochs: int, learning_rate: float, bot_portion: f
                         tensor_correction_b.append(new_tensor)
             else: # In the case of a draw, both sides are punished
                 for m in range(cur_move, len(move_history)):
-                    new_tensor = valid_move_history[m]
+                    new_tensor = np.ones(81)
                     new_tensor[move_history[m]] = 0
                     tensor_correction.append(new_tensor)
                 if against_bot:
                     for m in range(cur_move_b, len(move_history_b)):
-                        new_tensor = valid_move_history_b[m]
+                        new_tensor = np.ones(81)
                         new_tensor[move_history_b[m]] = 0
                         tensor_correction_b.append(new_tensor)
             cur_move = len(move_history)

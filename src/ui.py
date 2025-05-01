@@ -182,7 +182,7 @@ def main():
         tests = int(
             ask_until_valid(
                 "How many test games against random players would you like? ",
-                lambda x: x.isnumeric() and x > 0,
+                lambda x: x.isnumeric() and int(x) > 0,
             )
         )
         display = (
