@@ -195,7 +195,6 @@ def main():
         TTM.bot_vs_random(model, tests, display)
     else:
         pg.init()
-        game = TTT.SuperTicTacToe()
         screen = pg.display.set_mode((612, 612))
         clock = pg.time.Clock()
         running = True
