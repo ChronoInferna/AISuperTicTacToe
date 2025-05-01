@@ -151,7 +151,7 @@ def main():
         print("The following inputs should be a number from 0-1.")
         random_portion = float(
             ask_until_valid(
-                "During training,what portion of the bot's actions should be random? ",
+                "During training, what portion of the bot's actions should be random? ",
                 lambda x: x.replace(".", "", 1).isnumeric() and 0 <= float(x) <= 1,
             )
         )
