@@ -15,7 +15,7 @@ class Cell(IntEnum):
     @value O: Represents player O's move (2).
     """
 
-    F = -1 # Full
+    F = -1  # Full
     B = 0  # Blank
     X = 1  # Player X's move
     O = 2  # Player O's move
@@ -193,25 +193,28 @@ class SuperTicTacToe:
         if next_board.check_winner() or not np.any(next_board.board == Cell.B.value):
             self.next_board = None
 
-        #Next board list for bot to know what boards are valid.
+        # Next board list for bot to know what boards are valid.
         self.next_board_list = np.zeros(9)
         if self.next_board is None:
             winners = self.get_winner_matrix()
             for i in range(9):
-                if winners[i//3][i%3] == Cell.B:
+                if winners[i // 3][i % 3] == Cell.B:
                     self.next_board_list[i] = 1
         else:
-            self.next_board_list[self.next_board[0]*3+self.next_board[1]] = 1
+            self.next_board_list[self.next_board[0] * 3 + self.next_board[1]] = 1
         self.valid_moves = np.zeros(81)
         for b in range(9):
             if self.next_board_list[b] == 1:
                 for square in range(9):
-                    if self.boards[b//3, b%3].board[square//3, square%3] == Cell.B:
-                        self.valid_moves[b*9+square] = 1
+                    if (
+                        self.boards[b // 3, b % 3].board[square // 3, square % 3]
+                        == Cell.B
+                    ):
+                        self.valid_moves[b * 9 + square] = 1
 
         for i in range(180, 189):
             self.X_flat_board[i] = self.next_board_list[i - 180]
-            self.O_flat_board[i] = self.next_board_list[i-180]
+            self.O_flat_board[i] = self.next_board_list[i - 180]
 
     # For the bot to know what moves are valid.
     def get_valid_moves(self):
@@ -254,7 +257,7 @@ class SuperTicTacToe:
             for j in range(3):
                 board: TicTacToe = cast(TicTacToe, self.boards[i, j])
                 winner = board.check_winner()
-                winners[i, j] = winner.value
+                winners[i, j] = Cell.B.value if winner is None else winner.value
         return winners
 
     def check_winner(self) -> Cell | None:
@@ -273,12 +276,7 @@ class SuperTicTacToe:
 
         # Check columns for a win
         for col in range(3):
-            if (
-                winners[0, col]
-                == winners[1, col]
-                == winners[2, col]
-                != Cell.B.value
-            ):
+            if winners[0, col] == winners[1, col] == winners[2, col] != Cell.B.value:
                 return Cell(winners[0, col])
 
         # Check diagonals for a win
@@ -289,7 +287,11 @@ class SuperTicTacToe:
             return Cell(winners[0, 2])
 
         # Check if there is a draw
-        if not(Cell.B.value in winners[0] or Cell.B.value in winners[1] or Cell.B.value in winners[2]):
+        if not (
+            Cell.B.value in winners[0]
+            or Cell.B.value in winners[1]
+            or Cell.B.value in winners[2]
+        ):
             return Cell.F
 
         return Cell.B  # No winner
