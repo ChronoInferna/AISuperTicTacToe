@@ -13,6 +13,9 @@ Project Details:
 
 ✧ Play against an AI model
 
+For the game rules, watch this video by Vsauce:
+https://www.youtube.com/watch?v=_Na3a1ZrX7c
+
 Since the compiled file is too large for github, please download it from here:
 
 https://drive.google.com/drive/folders/1dOjQWDC24a32FgqG-BUt-Z-C3gV8LjPA
