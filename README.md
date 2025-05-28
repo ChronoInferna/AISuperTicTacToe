@@ -1,6 +1,7 @@
 # Final Project For COP3504C! 🥳
 
 Project Details:
+
 ✧ Super TicTacToe
 
 ✧ Play a pygame-based game
@@ -13,11 +14,6 @@ Project Details:
 
 ✧ Play against an AI model
 
-For the game rules, watch this video by Vsauce:
-https://www.youtube.com/watch?v=_Na3a1ZrX7c
+For the game rules, watch this [video](https://www.youtube.com/watch?v=_Na3a1ZrX7c) by Vsauce.
 
-Since the compiled file is too large for github, please download it from here: https://drive.google.com/drive/folders/1dOjQWDC24a32FgqG-BUt-Z-C3gV8LjPA
-
-Be sure to download the "files" folder along with the compiled code. Ensure that they are both in the same directory when you are running the program.
-
-The instructions to play this game can be found in this recording: https://drive.google.com/file/d/1wA4BINuoHovdMot14rZCLxeomgzHcFOi/view
+More details in this [recording](https://drive.google.com/file/d/1wA4BINuoHovdMot14rZCLxeomgzHcFOi/view)
