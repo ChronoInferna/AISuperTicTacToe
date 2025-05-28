@@ -1,5 +1,7 @@
 # Final Project For COP3504C! 🥳
 
+Created in collaboration with
+
 Project Details:
 
 ✧ Super TicTacToe
